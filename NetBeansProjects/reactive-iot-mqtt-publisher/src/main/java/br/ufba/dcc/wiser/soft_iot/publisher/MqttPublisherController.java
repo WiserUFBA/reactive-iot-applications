@@ -57,40 +57,20 @@ public class MqttPublisherController extends AbstractVerticle {
     public MqttPublisherController() {
     }
 
-    @Override
-    public void start() {
-        JsonObject json = new JsonObject()
-                .put("served-by", this.toString());
-        try {
-
-            BundleContext context = FrameworkUtil.getBundle(MqttPublisherController.class).getBundleContext();
-
-            final ServiceReference eventBusRef = context.getServiceReference("io.vertx.core.eventbus.EventBus");
-
-            EventBus eb = (EventBus) context.getService(eventBusRef);
-
-            MessageConsumer<String> consumer = eb.consumer(enderecoBarramento);
-
-            consumer.handler(message -> {
-                System.out.println("Reactive IoT MQTT Publisher: Recebendo mensagens: " + message.body());
-
-                message.reply(json.put("message", message.body()));
-
-            });
-        } catch (Exception d) {
-            d.printStackTrace();
-
-        }
-
+    private void deserializedMessage(String message) {
         Gson gson = new Gson();
 
         Type devicesListType = new TypeToken<ArrayList<Device>>() {
         }.getType();
-        listDevices = gson.fromJson(json.getString("message"), devicesListType);
+        listDevices = gson.fromJson(message, devicesListType);
 
-        setListDevices(listDevices);
+        System.out.println("Sending FLOW messages:");
+        sendFlowRequestBySensorDevice();
 
-        System.out.println("qtd " + listDevices.size());
+    }
+
+    @Override
+    public void start() {
 
         this.mqttOptions = new MqttClientOptions();
 
@@ -102,54 +82,36 @@ public class MqttPublisherController extends AbstractVerticle {
         }
 
         this.publisher = MqttClientUtil.getMqttClientUtil();
-        System.out.println("Sending FLOW messages:");
 
-        sendFlowRequestBySensorDevice();
+        try {
 
-        //   publisher = new MqttClient("tcp://" + this.brokerUrl + ":"  + this.brokerPort, this.serverId + "_pub" + unixTime);
-//            publisher.connect(connOpt);
-//            printlnDebug("Sending FLOW messages:");
-//            sendFlowRequestBySensorDevice();
-//        } catch (MqttSecurityException e) {
-//            // TODO Auto-generated catch block
-//            e.printStackTrace();
-//        } catch (MqttException e) {
-//            // TODO Auto-generated catch block
-//            e.printStackTrace();
-//        }
+            BundleContext context = FrameworkUtil.getBundle(MqttPublisherController.class).getBundleContext();
+
+            final ServiceReference eventBusRef = context.getServiceReference("io.vertx.core.eventbus.EventBus");
+
+            EventBus eb = (EventBus) context.getService(eventBusRef);
+
+            MessageConsumer<String> consumer = eb.consumer(enderecoBarramento);
+
+            consumer.handler(message -> {
+
+                deserializedMessage(message.body());
+
+            });
+        } catch (Exception d) {
+            d.printStackTrace();
+
+        }
+
     }
 
-//        MqttConnectOptions connOpt = new MqttConnectOptions();
-//        if (!this.username.isEmpty()) {
-//            connOpt.setUserName(this.username);
-//        }
-//        if (!this.password.isEmpty()) {
-//            connOpt.setPassword(this.password.toCharArray());
-//        }
-//        try {
-//            long unixTime = System.currentTimeMillis() / 1000L;
-//            publisher = new MqttClient("tcp://" + this.brokerUrl + ":"
-//                    + this.brokerPort, this.serverId + "_pub" + unixTime);
-//            publisher.connect(connOpt);
-//            printlnDebug("Sending FLOW messages:");
-//            sendFlowRequestBySensorDevice();
-//        } catch (MqttSecurityException e) {
-//            // TODO Auto-generated catch block
-//            e.printStackTrace();
-//        } catch (MqttException e) {
-//            // TODO Auto-generated catch block
-//            e.printStackTrace();
-//        }
     public List<Device> getListDevices() {
         return listDevices;
     }
 
     public void sendFlowRequestBySensorDevice() {
         try {
-            List<Device> devices = listDevices;
-            System.out.println("qtd2 " + devices.size());
-
-            for (Device device : devices) {
+            for (Device device : listDevices) {
 
                 List<Sensor> sensors = device.getSensors();
                 for (Sensor sensor : sensors) {
@@ -176,7 +138,7 @@ public class MqttPublisherController extends AbstractVerticle {
         String topic = TATUWrapper.topicBase + topicName;
 
         try {
-            this.publisher = MqttClientUtil.getMqttClientUtil();
+         //   this.publisher = MqttClientUtil.getMqttClientUtil();
 
             publisher.publish(topic, buffer, MqttQoS.AT_MOST_ONCE, false, false);
 
@@ -200,7 +162,7 @@ public class MqttPublisherController extends AbstractVerticle {
 //
 //    }
     public void destroy() {
-        this.publisher.disconnect(); // TODO Auto-generated catch block
+        //   this.publisher.disconnect(); // TODO Auto-generated catch block
     }
 
     private void printlnDebug(String str) {
