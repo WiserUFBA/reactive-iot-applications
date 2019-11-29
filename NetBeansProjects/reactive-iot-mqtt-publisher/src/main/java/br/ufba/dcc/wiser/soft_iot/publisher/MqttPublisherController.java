@@ -117,7 +117,7 @@ public class MqttPublisherController extends AbstractVerticle {
                 for (Sensor sensor : sensors) {
                     String flowRequest;
                     if (sensor.getCollection_time() <= 0) {
-                        flowRequest = TATUWrapper.getTATUFlowValue(sensor.getId(), defaultCollectionTime, defaultPublishingTime);
+                        flowRequest = TATUWrapper.getTATUFlowValue(sensor.getId(), 2000, 3000);
                     } else {
                         flowRequest = TATUWrapper.getTATUFlowValue(sensor.getId(), sensor.getCollection_time(), sensor.getPublishing_time());
                     }
