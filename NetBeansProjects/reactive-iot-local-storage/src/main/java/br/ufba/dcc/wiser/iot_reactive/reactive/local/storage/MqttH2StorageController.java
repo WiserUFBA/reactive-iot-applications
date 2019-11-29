@@ -5,12 +5,19 @@ import br.ufba.dcc.wiser.iot_reactive.model.Device;
 import br.ufba.dcc.wiser.iot_reactive.model.Sensor;
 import br.ufba.dcc.wiser.iot_reactive.model.SensorData;
 import br.ufba.dcc.wiser.iot_reactive.storage.util.tatu.TATUWrapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.vertx.core.json.JsonArray;
+
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.MessageConsumer;
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.jdbc.JDBCClient;
+import io.vertx.ext.sql.SQLConnection;
 import io.vertx.mqtt.MqttClient;
 import io.vertx.mqtt.MqttClientOptions;
 import io.vertx.mqtt.MqttException;
@@ -52,14 +59,17 @@ public class MqttH2StorageController extends AbstractVerticle {
     private DataSource dataSource;
     private String numOfHoursDataStored;
     private MqttClientOptions mqttOptions;
+    Vertx vetx = Vertx.vertx();
 
     private String enderecoBarramento;
 
     private List<Device> listDevices;
+    private Device dev;
     //private Controller fotDevices;
     private int defaultCollectionTime;
     private int defaultPublishingTime;
     private boolean debugModeValue;
+    private String topico;
 
     private void deserializedMessage(String message) {
         Gson gson = new Gson();
@@ -69,15 +79,15 @@ public class MqttH2StorageController extends AbstractVerticle {
 
         listDevices = gson.fromJson(message, devicesListType);
 
+        setListDevices(listDevices);
+
+        for (Device device : listDevices) {
+            dev = new Device();
+            dev.setSensors(device.getSensors());
+        }
+
         System.out.println("subscribing in topics:");
         subscribeDevicesTopics(listDevices);
-
-        this.subscriber.publishHandler(hndlr -> {
-            System.out.println("There are new message in topic: " + hndlr.topicName());
-            System.out.println("Content(as string) of the message: " + hndlr.payload().toString());
-            System.out.println("QoS: " + hndlr.qosLevel());
-
-        }).subscribe("/dev/sc01", 1);
 
     }
 
@@ -119,51 +129,104 @@ public class MqttH2StorageController extends AbstractVerticle {
 
         }
 
-      
-        // TODO Auto-generated catch block
-//		try {
-//			Connection dbConnection = this.dataSource.getConnection();
-//			Statement stmt = dbConnection.createStatement();
-//			//stmt.execute("drop table sensor_data");
-//			//stmt.execute("drop table semantic_registered_last_time_sensors");
-//			//stmt.execute("drop table aggregation_registered_last_time_sensors");
-//			DatabaseMetaData dbMeta = dbConnection.getMetaData();
-//			printlnDebug("Using datasource "
-//					+ dbMeta.getDatabaseProductName() + ", URL "
-//					+ dbMeta.getURL());
-//			stmt.execute("CREATE TABLE IF NOT EXISTS sensor_data(ID BIGINT AUTO_INCREMENT PRIMARY KEY, sensor_id VARCHAR(255),"
-//					+ " device_id VARCHAR(255), data_value VARCHAR(255), start_datetime TIMESTAMP, end_datetime TIMESTAMP, aggregation_status INT DEFAULT 0)");
-//			
-//			stmt.execute("CREATE TABLE IF NOT EXISTS semantic_registered_last_time_sensors(sensor_id VARCHAR(255),"
-//					+ " device_id VARCHAR(255), last_time TIMESTAMP)");
-//			
-//			stmt.execute("CREATE TABLE IF NOT EXISTS aggregation_registered_last_time_sensors(sensor_id VARCHAR(255),"
-//					+ " device_id VARCHAR(255), last_time TIMESTAMP)");
-//			
-        /*ResultSet rs = stmt.executeQuery("SELECT * FROM sensor_data");
-            ResultSetMetaData meta = rs.getMetaData();
-            while (rs.next()) {
-                writeResult(rs, meta.getColumnCount());
-            }*/
- /*
-			rs = stmt.executeQuery("CALL DISK_SPACE_USED('sensor_data')");
-			meta = rs.getMetaData();
-            while (rs.next()) {
-                writeResult(rs, meta.getColumnCount());
-            }*/
-//            dbConnection.close();
-//		} catch (SQLException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
+        createTables();
+
+        this.subscriber.publishHandler(hndlr -> {
+
+            if (TATUWrapper.isValidTATUAnswer(hndlr.payload().toString())) {
+                try {
+                    String deviceId = TATUWrapper.getDeviceIdByTATUAnswer(hndlr.payload().toString());
+                    Device device = getDeviceById(deviceId);
+
+                    String sensorId = TATUWrapper.getSensorIdByTATUAnswer(hndlr.payload().toString());
+
+                    Sensor sensor = device.getSensorbySensorId(sensorId);
+                    Date date = new Date();
+                    List<SensorData> listSensorData = TATUWrapper.parseTATUAnswerToListSensorData(hndlr.payload().toString(), device, sensor, date);
+                    System.out.println("answer received: device: " + deviceId + " - sensor: " + sensor.getId() + " - number of data sensor: " + listSensorData.size());
+                    storeSensorData(listSensorData, device);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+            }
+
+            System.out.println("Microservice Storage: There are new message in topic: " + hndlr.topicName());
+            System.out.println("Microservice Storage: Content(as string) of the message: " + hndlr.payload().toString());
+            System.out.println("Microservice Storage: QoS: " + hndlr.qosLevel());
+
+        }).subscribe(topico, 1);
+
+    }
+
+    private void createTables() {
+
+        Vertx vetx = Vertx.vertx();
+
+        final JDBCClient client = JDBCClient.create(vetx, dataSource);
+
+        client.getConnection(conn -> {
+            if (conn.failed()) {
+
+                System.err.println(conn.cause().getMessage());
+                conn.cause().printStackTrace();;
+
+                return;
+            }
+
+            final SQLConnection connection = conn.result();
+            connection.execute("CREATE TABLE IF NOT EXISTS sensor_data(ID BIGINT AUTO_INCREMENT PRIMARY KEY, sensor_id VARCHAR(255), device_id VARCHAR(255), data_value VARCHAR(255), start_datetime TIMESTAMP, end_datetime TIMESTAMP, aggregation_status INT DEFAULT 0)",
+                    res -> {
+                        if (res.failed()) {
+
+                            throw new RuntimeException(res.cause());
+                        }
+
+                        if (res.succeeded()) {
+                            System.out.println("table sensor_data created with sucessfull");
+                        }
+
+                        connection.execute("CREATE TABLE IF NOT EXISTS semantic_registered_last_time_sensors(sensor_id VARCHAR(255), device_id VARCHAR(255), last_time TIMESTAMP)", result -> {
+                            if (result.failed()) {
+                                System.out.println("falhou semantic_registered_last_time_sensors");
+
+                                throw new RuntimeException(res.cause());
+                            }
+
+                            if (res.succeeded()) {
+                                System.out.println("table semantic_registered_last_time_sensors created with sucessfull");
+                            }
+
+                            connection.execute("CREATE TABLE IF NOT EXISTS aggregation_registered_last_time_sensors(sensor_id VARCHAR(255),device_id VARCHAR(255), last_time TIMESTAMP)", rslt -> {
+                                if (rslt.failed()) {
+                                    System.out.println("falhou aggregation_registered_last_time_sensors");
+
+                                    throw new RuntimeException(res.cause());
+                                }
+
+                                if (res.succeeded()) {
+                                    System.out.println("table aggregation_registered_last_time_sensors created with sucessfull");
+                                }
+
+                                // and close the connection
+                                connection.close(done -> {
+                                    if (done.failed()) {
+                                        throw new RuntimeException(done.cause());
+                                    }
+                                });
+                            });
+                        });
+                    });
+        });
     }
 
     private void subscribeDevicesTopics(List<Device> devices) {
-
-        System.out.println("aqui " + devices.size());
         //this.subscriber.subscribe("CONNECTED", 1);
         for (Device device : devices) {
-            System.out.println(TATUWrapper.topicBase + device.getId());
+            dev = new Device();
+            dev.setSensors(device.getSensors());
+
+            System.out.println("Devices" + TATUWrapper.topicBase + device.getId());
             this.subscriber.subscribe(TATUWrapper.topicBase + device.getId(), 1);
         }
     }
@@ -284,33 +347,70 @@ public class MqttH2StorageController extends AbstractVerticle {
 //		
 //	}
 //	
-//	private void storeSensorData(List<SensorData> listSensorData, Device device){
-//		try {
-//			Connection dbConn = this.dataSource.getConnection();
-//			Statement stmt = dbConn.createStatement();
-//			for(SensorData sensorData : listSensorData){
-//				String sensorId = sensorData.getSensor().getId();
-//				Timestamp startDateTime = new Timestamp(sensorData.getStartTime().getTime());
-//				Timestamp endDateTime = new Timestamp(sensorData.getEndTime().getTime());
-//				boolean result = stmt.execute("INSERT INTO sensor_data (sensor_id, device_id, data_value, start_datetime, end_datetime) values "
-//						+ "('"+ sensorId + "', '" + device.getId() +"', '" + sensorData.getValue() + "' ,'" + startDateTime
-//						+ "', '" + endDateTime + "')");
-//				if(result){
-//					printlnDebug("cannot insert data:" + "('"+ sensorId + "', '" + device.getId() +"', '" + sensorData.getValue() + "' ,'" + startDateTime
-//							+ "', '" + endDateTime + "')");
-//				}
-//			}
-//			dbConn.close();
-//		} catch (SQLException e) {
-//			e.printStackTrace();
-//		}
-//		
-//	}
+    private void storeSensorData(List<SensorData> listSensorData, Device device) {
+
+        try {
+            final JDBCClient client = JDBCClient.create(vetx, dataSource);
+
+            client.getConnection(conn -> {
+                if (conn.failed()) {
+
+                    System.out.println("erro " + conn.cause().getMessage());
+                    conn.cause().printStackTrace();;
+
+                    return;
+                }
+
+                final SQLConnection connection = conn.result();
+
+                for (SensorData sensorData : listSensorData) {
+
+                    String sensorId = sensorData.getSensor().getId();
+
+                    Timestamp startDateTime = new Timestamp(sensorData.getStartTime().getTime());
+                    Timestamp endDateTime = new Timestamp(sensorData.getEndTime().getTime());
+
+                    System.out.println("startDateTime " + startDateTime);
+                    System.out.println("endDateTime " + endDateTime);
+
+                    connection.execute("INSERT INTO sensor_data (sensor_id, device_id, data_value, start_datetime, end_datetime) values " + "('" + sensorId + "', '" + device.getId() + "', '" + sensorData.getValue() + "' ,'" + startDateTime + "', '" + endDateTime + "')", res -> {
+
+                       
+                         connection.query("select * from sensor_data", rs -> {
+                            for (JsonArray line : rs.result().getResults()) {
+                                System.out.println(line.encode());
+                            }
+                        
+                            connection.close(done -> {
+                                if (done.failed()) {
+                                    System.out.println("cannot insert data:" + "('" + sensorId + "', '" + device.getId() + "', '" + sensorData.getValue() + "' ,'" + startDateTime + "', '" + endDateTime + "')");
+                                    throw new RuntimeException(done.cause());
+                                }
+
+                                if (done.succeeded()) {
+                                    System.out.println("data inserted with sucessful");
+                                }
+
+                            });
+
+                        });
+                     });  //fecha a query
+                    }
+                });
+            } catch (Exception ex) {
+             System.out.println("erro de conexão");
+        }
+
+        }
+
+
+
+
     public void cleanOldData() {
         printlnDebug("clean old data...");
         Connection dbConn;
         try {
-            dbConn = this.dataSource.getConnection();
+            dbConn = this.getDataSource().getConnection();
             Statement stmt = dbConn.createStatement();
             Calendar cal = Calendar.getInstance();
             cal.add(Calendar.HOUR, (-1) * Integer.parseInt(this.numOfHoursDataStored));
@@ -415,6 +515,27 @@ public class MqttH2StorageController extends AbstractVerticle {
      */
     public void setEnderecoBarramento(String enderecoBarramento) {
         this.enderecoBarramento = enderecoBarramento;
+    }
+
+    /**
+     * @return the topico
+     */
+    public String getTopico() {
+        return topico;
+    }
+
+    /**
+     * @param topico the topico to set
+     */
+    public void setTopico(String topico) {
+        this.topico = topico;
+    }
+
+    /**
+     * @return the dataSource
+     */
+    public DataSource getDataSource() {
+        return dataSource;
     }
 
 }

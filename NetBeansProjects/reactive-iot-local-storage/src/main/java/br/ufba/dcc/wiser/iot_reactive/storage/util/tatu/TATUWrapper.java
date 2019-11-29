@@ -49,10 +49,11 @@ public final class TATUWrapper {
 		try{
 			JSONObject json = new JSONObject(answer);
 			if ((json.get("code").toString().contentEquals("post"))
-					&& json.getJSONObject("data") != null) {
+					&& json.get("data") != null) {
 				return true;
 			}
 		} catch (org.json.JSONException e) {
+                  //  e.printStackTrace();
 		}
 		return false;
 	}
@@ -67,6 +68,8 @@ public final class TATUWrapper {
 	public static String getSensorIdByTATUAnswer(String answer){
 		JSONObject json = new JSONObject(answer);
 		String sensorId = json.getJSONObject("header").getString("sensor");
+                
+                
 		return sensorId;
 	}
 	
@@ -76,13 +79,13 @@ public final class TATUWrapper {
 		try{
 			JSONObject json = new JSONObject(answer);
 			JSONArray sensorValues = json.getJSONArray("data");
-			int collectTime = json.getJSONObject("time").getInt("collect");
+			int collectTime = json.getJSONObject("header").getJSONObject("time").getInt("collect");
 			Calendar calendar = Calendar.getInstance();
 			calendar.setTime(baseDate);
 			for (int i = 0; i < sensorValues.length(); i++) {
 				Integer valueInt = sensorValues.getInt(i);
 				String value = valueInt.toString();
-				SensorData sensorData = new SensorData(device, sensor,value,LocalDateTime.now(),LocalDateTime.now());
+				SensorData sensorData = new SensorData(device, sensor,value,calendar.getTime(),calendar.getTime());
                                 
 
 				listSensorData.add(sensorData);

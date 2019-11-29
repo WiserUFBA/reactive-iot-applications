@@ -20,7 +20,9 @@
  http://cxf.apache.org/blueprint/core http://cxf.apache.org/schemas/blueprint/core.xsd">
 
 	
-	
+	<reference id="dataBase" interface="javax.sql.DataSource"
+		availability="optional" filter="(dataSourceName=reactive-iot-local-storage)" />
+
 	
 	
 	<bean id="MqttH2StorageControllerBean" class="br.ufba.dcc.wiser.iot_reactive.reactive.local.storage.MqttH2StorageController"
@@ -30,12 +32,15 @@
 		<property name="serverId" value="${MQTTServerId}" />
 		<property name="username" value="${MQTTUsername}" />
 		<property name="password" value="${MQTTPassword}" />
-		
+		<property name="dataSource" ref="dataBase" />
+
 		<property name="numOfHoursDataStored" value="${NumberOfHoursDataStored}" />
 		<property name="debugModeValue" value="${debugMode}" />
 		<property name="defaultCollectionTime" value="${DefaultCollectionTimeSensorData}" />
 		<property name="defaultPublishingTime" value="${DefaultPublishingTimeSensorData}" />
-                 <property name="enderecoBarramento" value="${enderecoBarramento}" />
+                <property name="enderecoBarramento" value="${enderecoBarramento}" />
+                <property name="topico" value="${topico}" />
+                 
 
 	</bean>
 	
@@ -70,6 +75,8 @@
 			<cm:property name="debugMode" value="true" />
                         
                         <cm:property name="enderecoBarramento" value="busofdevices" />
+
+                        <cm:property name="topico" value="/dev/sc01" />
 
 		</cm:default-properties>
 	</cm:property-placeholder>

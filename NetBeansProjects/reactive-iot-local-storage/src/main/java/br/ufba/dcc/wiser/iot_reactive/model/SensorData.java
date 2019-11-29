@@ -7,6 +7,7 @@ package br.ufba.dcc.wiser.iot_reactive.model;
 
 
 import java.time.LocalDateTime;
+import java.util.Date;
 
 /**
  *
@@ -18,6 +19,8 @@ public class SensorData {
     private Device device;
     private Sensor sensor;
     private LocalDateTime localDateTime;
+    private Date startTime;
+    private Date endTime;
     private long delay;
 
     
@@ -41,11 +44,14 @@ public class SensorData {
 //    }
     
      //utilizado para o sensor físico
-    public SensorData( Device device,  Sensor sensor, String value, LocalDateTime localDateTime ,LocalDateTime localDateTime2){
+    public SensorData( Device device,  Sensor sensor, String value, Date startTime,
+			Date endTime){
         this.value = value;
-        this.localDateTime = localDateTime;
+      //  this.localDateTime = localDateTime;
         this.sensor = sensor;
         this.device = device;
+        this.startTime = startTime;
+        this.endTime = endTime;
         
     }
     
@@ -95,6 +101,39 @@ public class SensorData {
     public void setSensor(Sensor sensor) {
         this.sensor = sensor;
     }
+    
+    public Sensor getSensor() {
+		return sensor;
+	}
+
+    /**
+     * @return the startTime
+     */
+    public Date getStartTime() {
+        return startTime;
+    }
+
+    /**
+     * @param startTime the startTime to set
+     */
+    public void setStartTime(Date startTime) {
+        this.startTime = startTime;
+    }
+
+    /**
+     * @return the endTime
+     */
+    public Date getEndTime() {
+        return endTime;
+    }
+
+    /**
+     * @param endTime the endTime to set
+     */
+    public void setEndTime(Date endTime) {
+        this.endTime = endTime;
+    }
+
     
     
     

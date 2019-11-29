@@ -19,7 +19,13 @@ public class Device {
 	}
 	
 	public Sensor getSensorbySensorId(String sensorId){
+            
+            System.out.println("tamanho " + sensors.size());
 		for(Sensor sensor : sensors){
+                    
+                                System.out.println("sensor.getId() " + sensor.getId());
+                                System.out.println("sensorId " + sensorId);
+   
 			if(sensor.getId().contentEquals(sensorId))
 				return sensor;
 		}
