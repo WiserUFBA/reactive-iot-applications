@@ -81,7 +81,6 @@ public class ControllerImpl extends AbstractVerticle implements Controller {
 
         BundleContext context =  FrameworkUtil.getBundle(ControllerImpl.class).getBundleContext();    
 
-        Vertx vetx = Vertx.vertx();
 
         final ServiceReference eventBusRef = context.getServiceReference("io.vertx.core.eventbus.EventBus");
 
