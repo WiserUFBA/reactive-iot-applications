@@ -46,7 +46,7 @@
                 <extensions>true</extensions>
                 <configuration>
                     <instructions>
-                        <Bundle-Activator>br.ufba.dcc.wiser.iot_reactive.mavenproject6.VertxActivator</Bundle-Activator>-->
+                        <Bundle-Activator>br.ufba.dcc.wiser.iot_reactive.bus.VertxActivator</Bundle-Activator>
                         <Export-Package/>
                     </instructions>
                 </configuration>

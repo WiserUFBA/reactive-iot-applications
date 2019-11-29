@@ -22,9 +22,9 @@ public class VertxActivator implements BundleActivator {
             Vertx vertx = executeWithTCCLSwitch(() -> Vertx.vertx());
 
             vertxRegistration = context.registerService(Vertx.class, vertx, null);
-            System.out.println("Vert.x service registered");
+            System.out.println("Reactive IoT Message Channel: Vert.x service registered");
             ebRegistration = context.registerService(EventBus.class, vertx.eventBus(), null);
-            System.out.println("Vert.x Event Bus service registered");
+            System.out.println("Reactive IoT Message Channel: Vert.x Event Bus service registered");
 
         } catch (Exception c) {
             c.printStackTrace();

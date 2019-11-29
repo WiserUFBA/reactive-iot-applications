@@ -20,13 +20,13 @@
  http://cxf.apache.org/blueprint/core http://cxf.apache.org/schemas/blueprint/core.xsd">
 
 	
-
+<!--
 	<bean id="busObj" class="br.ufba.dcc.wiser.iot_reactive.mavenproject6.Barramento"
 		init-method="start" >
 		
 		
 	</bean>
-	
+	-->
         
        
 	
