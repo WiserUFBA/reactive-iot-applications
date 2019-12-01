@@ -85,10 +85,8 @@ public class MqttH2StorageController extends AbstractVerticle {
             dev = new Device();
             dev.setSensors(device.getSensors());
         }
-
-        System.out.println("subscribing in topics:");
-        subscribeDevicesTopics(listDevices);
-
+     
+       
     }
 
     @Override
@@ -117,6 +115,10 @@ public class MqttH2StorageController extends AbstractVerticle {
 
             EventBus eb = (EventBus) context.getService(eventBusRef);
 
+            
+           // vetx.setPeriodic(2000, id -> {
+
+            
             MessageConsumer<String> consumer = eb.consumer(enderecoBarramento);
 
             consumer.handler(message -> {
@@ -124,11 +126,19 @@ public class MqttH2StorageController extends AbstractVerticle {
                 deserializedMessage(message.body());
 
             });
+            
+               
+      //  System.out.println("subscribing in topics");
+       // subscribeDevicesTopics();
+
+
+       //     });
         } catch (Exception d) {
             d.printStackTrace();
 
         }
 
+     
         createTables();
 
         this.subscriber.publishHandler(hndlr -> {
@@ -144,16 +154,20 @@ public class MqttH2StorageController extends AbstractVerticle {
                     Date date = new Date();
                     List<SensorData> listSensorData = TATUWrapper.parseTATUAnswerToListSensorData(hndlr.payload().toString(), device, sensor, date);
                     System.out.println("answer received: device: " + deviceId + " - sensor: " + sensor.getId() + " - number of data sensor: " + listSensorData.size());
+                    
+                     System.out.println("Microservice Storage: There are new message in topic: " + hndlr.topicName());
+                     System.out.println("Microservice Storage: Content(as string) of the message: " + hndlr.payload().toString());
+                     System.out.println("Microservice Storage: QoS: " + hndlr.qosLevel());
+
+                    
                     storeSensorData(listSensorData, device);
+                    
+                    
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
 
             }
-
-            System.out.println("Microservice Storage: There are new message in topic: " + hndlr.topicName());
-            System.out.println("Microservice Storage: Content(as string) of the message: " + hndlr.payload().toString());
-            System.out.println("Microservice Storage: QoS: " + hndlr.qosLevel());
 
         }).subscribe(topico, 1);
 
@@ -220,9 +234,9 @@ public class MqttH2StorageController extends AbstractVerticle {
         });
     }
 
-    private void subscribeDevicesTopics(List<Device> devices) {
+    private void subscribeDevicesTopics() {
         //this.subscriber.subscribe("CONNECTED", 1);
-        for (Device device : devices) {
+        for (Device device : listDevices) {
             dev = new Device();
             dev.setSensors(device.getSensors());
 
@@ -370,17 +384,15 @@ public class MqttH2StorageController extends AbstractVerticle {
                     Timestamp startDateTime = new Timestamp(sensorData.getStartTime().getTime());
                     Timestamp endDateTime = new Timestamp(sensorData.getEndTime().getTime());
 
-                    System.out.println("startDateTime " + startDateTime);
-                    System.out.println("endDateTime " + endDateTime);
-
+                 
                     connection.execute("INSERT INTO sensor_data (sensor_id, device_id, data_value, start_datetime, end_datetime) values " + "('" + sensorId + "', '" + device.getId() + "', '" + sensorData.getValue() + "' ,'" + startDateTime + "', '" + endDateTime + "')", res -> {
 
                        
-                         connection.query("select * from sensor_data", rs -> {
-                            for (JsonArray line : rs.result().getResults()) {
-                                System.out.println(line.encode());
-                            }
-                        
+//                         connection.query("select * from sensor_data", rs -> {
+//                            for (JsonArray line : rs.result().getResults()) {
+//                                System.out.println(line.encode());
+//                            }
+//                        
                             connection.close(done -> {
                                 if (done.failed()) {
                                     System.out.println("cannot insert data:" + "('" + sensorId + "', '" + device.getId() + "', '" + sensorData.getValue() + "' ,'" + startDateTime + "', '" + endDateTime + "')");
@@ -393,7 +405,7 @@ public class MqttH2StorageController extends AbstractVerticle {
 
                             });
 
-                        });
+                      //  });
                      });  //fecha a query
                     }
                 });
