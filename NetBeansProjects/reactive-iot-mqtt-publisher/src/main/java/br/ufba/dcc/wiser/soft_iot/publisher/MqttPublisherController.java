@@ -64,7 +64,7 @@ public class MqttPublisherController extends AbstractVerticle {
         }.getType();
         listDevices = gson.fromJson(message, devicesListType);
 
-        System.out.println("Sending FLOW messages:");
+      //  System.out.println("Sending FLOW messages:");
         sendFlowRequestBySensorDevice();
 
     }
@@ -121,7 +121,7 @@ public class MqttPublisherController extends AbstractVerticle {
                     } else {
                         flowRequest = TATUWrapper.getTATUFlowValue(sensor.getId(), sensor.getCollection_time(), sensor.getPublishing_time());
                     }
-                    System.out.println("[topic: " + device.getId() + "] " + flowRequest);
+                 //   System.out.println("[topic: " + device.getId() + "] " + flowRequest);
                     publishTATUMessage(flowRequest, device.getId());
                 }
 
