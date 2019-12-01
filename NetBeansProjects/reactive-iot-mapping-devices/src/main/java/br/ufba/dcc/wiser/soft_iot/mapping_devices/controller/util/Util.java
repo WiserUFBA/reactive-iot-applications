@@ -11,7 +11,7 @@ package br.ufba.dcc.wiser.soft_iot.mapping_devices.controller.util;
  */
 public class Util {
     public static final String enderecoBarramento="busofdevices";
-    public static final int timepublish=5000;
+    public static final int timepublish=1000;
    
     
 }

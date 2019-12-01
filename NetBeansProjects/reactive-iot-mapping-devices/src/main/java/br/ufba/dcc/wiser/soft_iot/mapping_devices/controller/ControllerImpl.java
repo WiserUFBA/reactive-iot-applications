@@ -31,6 +31,8 @@ public class ControllerImpl extends AbstractVerticle implements Controller {
     private String strJsonDevices;
     private boolean debugModeValue;
     private String enderecoBarramento;
+    private Vertx vetx = Vertx.vertx();
+
 
     @Override
     public void start() {
@@ -86,11 +88,11 @@ public class ControllerImpl extends AbstractVerticle implements Controller {
 
         EventBus eventBus = (EventBus) context.getService(eventBusRef);
 
-        //vetx.setPeriodic(Util.timepublish, id -> {
+      //  vetx.setPeriodic(Util.timepublish, id -> {
 
             eventBus.publish(Util.enderecoBarramento, devices);
-            System.out.println("We now have a clustered event bus: " + eventBus);
-      //  });
+          //  System.out.println("we are publishing devices in bus: " + devices);
+     //   });
         
         }catch(Exception v){
             v.printStackTrace();
